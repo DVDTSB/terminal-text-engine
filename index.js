@@ -175,6 +175,7 @@ let handleInput = () => {
 };
 let loadDisk = (uninitdisk) => {
   disk = init(uninitdisk);
+  
   console.log(colors.green("\nLoaded disk"));
 };
 

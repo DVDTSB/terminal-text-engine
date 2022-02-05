@@ -1,0 +1,117 @@
+const colors = require("ansi-colors");
+const game = {
+  name: "demo",
+  inConversation: false,
+  extraInit: (utilities, disk) => {},
+  load: (utilities, disk) => {
+    console.log(colors.green("Welcome to the Demo!"));
+    const room = utilities.getRoom(disk.roomId);
+    utilities.getRoom(disk.roomId).visits++;
+    console.log(colors.green(room.name));
+    console.log(colors.italic(room.desc));
+  },
+  actions: [
+    {
+      name: "save",
+      desc: "Save the game",
+      func: (utilities, disk, target) => {
+        utilities.save(disk.name);
+      },
+    },
+    {
+      name: "look",
+      keywords: ["look", "l"],
+      desc: "Look around",
+      func: (utilities, disk, target) => {
+        const room = utilities.getRoom(disk.roomId);
+        console.log(colors.green(room.name));
+        console.log(colors.italic(room.desc));
+      },
+    },
+    {
+      name: "go",
+      keywords: ["go", "g"],
+      desc: "Go to a room",
+      func: (utilities, disk, target) => {
+        const current_room = utilities.getRoom(disk.roomId);
+        const exit = utilities.getExit(current_room, target);
+        const look = utilities.getAction("look");
+
+        if (exit) {
+          if (exit.block) {
+            console.log(colors.red("\n      The exit is blocked\n"));
+          } else {
+            disk.roomId = exit.id;
+            look.func(utilities, disk, "");
+          }
+        } else {
+          console.log(colors.red("\n      There is no exit that way\n"));
+        }
+      },
+    },
+    {
+      name: "take",
+      keywords: ["take", "t"],
+      desc: "Take an item",
+      func: (utilities, disk, target) => {
+        const current_room = utilities.getRoom(disk.roomId);
+        const items = current_room.items;
+        const item = items.find((i) => i.name == target);
+        if (item) {
+          if (item.isTakeable == true) {
+            disk.inventory.push(item);
+            delete current_room.items[items.indexOf(item)];
+            console.log(colors.green(`\n      You took the ${item.name}\n`));
+          } else {
+            console.log(
+              colors.red(`\n      You can't take the ${item.name}, dummy\n`)
+            );
+          }
+        } else {
+          console.log(colors.red(`\n      There is no ${target} here\n`));
+        }
+      },
+    },
+    {
+      name: "quit",
+      keywords: ["quit"],
+      desc: "quit",
+      func: (utilites, disk, target) => {
+        process.exit();
+      },
+    },
+  ],
+  roomId: "start",
+  rooms: [
+    {
+      id: "start",
+      name: "The First Room",
+      desc: `You are in the first room, there is a coin in here. To the NORTH there an exit`,
+      items: [
+        {
+          name: "coin",
+          desc: `A golden coin, isn't it cute?`,
+          isTakeable: true,
+        },
+      ],
+      exits: [
+        {
+          dir: "north",
+          id: "second",
+        },
+      ],
+    },
+    {
+      id: "second",
+      name: "Second",
+      desc: `Second room lol, to the south there is an exit`,
+      exits: [
+        {
+          dir: "south",
+          id: "start",
+        },
+      ],
+    },
+  ],
+};
+module.exports = { game };
