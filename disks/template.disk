@@ -1,7 +1,7 @@
 const colors = require("ansi-colors");
 const game = {
-  name: "demo",
-  inConversation: false,
+  name: "template",
+  version: "0.0.1",
   extraInit: (utilities, disk) => {},
   load: (utilities, disk) => {
     console.log(colors.green("Welcome to the Demo!"));
