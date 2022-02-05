@@ -1,0 +1,19 @@
+{
+  "name": "sus",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ansi-colors": "^4.1.1",
+    "figlet": "^1.5.2",
+    "gradient-string": "^2.0.0",
+    "prompt-sync": "^4.1.6",
+    "request": "^2.88.2"
+  }
+}

@@ -1,0 +1,334 @@
+const colors = require("ansi-colors");
+const game = {
+  name: "demo",
+  inConversation: false,
+  extraInit: (utilities, disk) => {},
+  load: (utilities, disk) => {
+    console.log(colors.green("Welcome to the Demo!"));
+    const room = utilities.getRoom(disk.roomId);
+    utilities.getRoom(disk.roomId).visits++;
+    console.log(colors.green(room.name));
+    console.log(colors.italic(room.desc));
+  },
+  actions: [
+    {
+      name: "quests",
+      desc: "View your quests",
+      func: (utilities, disk, target) => {
+        console.log(colors.yellow("Quests:"));
+        disk.quests.forEach((quest) => {
+          console.log(colors.yellow(quest.name));
+        });
+      },
+    },
+    {
+      name: "save",
+      desc: "Save the game",
+      func: (utilities, disk, target) => {
+        utilities.save(disk.name);
+      },
+    },
+    {
+      name: "items",
+      desc: "View your items",
+      func: (utilities, disk, target) => {
+        utilities.getRoom(disk.roomId).items.forEach((item) => {
+          if (Array.isArray(item.name)) {
+            console.log(colors.green(item.name[0]));
+          } else {
+            console.log(colors.green(item.name));
+          }
+        });
+      },
+    },
+    {
+      name: "look",
+      keywords: ["look", "l"],
+      desc: "Look around",
+      func: (utilities, disk, target) => {
+        const room = utilities.getRoom(disk.roomId);
+        console.log(colors.green(room.name));
+        console.log(colors.italic(room.desc));
+      },
+    },
+    {
+      name: "go",
+      keywords: ["go", "g"],
+      desc: "Go to a room",
+      func: (utilities, disk, target) => {
+        const current_room = utilities.getRoom(disk.roomId);
+        const exit = utilities.getExit(current_room, target);
+        const look = utilities.getAction("look");
+
+        if (exit) {
+          if (exit.block) {
+            console.log(colors.red("\n      The exit is blocked\n"));
+          } else {
+            disk.roomId = exit.id;
+            look.func(utilities, disk, "");
+          }
+        } else {
+          console.log(colors.red("\n      There is no exit that way\n"));
+        }
+      },
+    },
+    {
+      name: "inventory",
+      keywords: ["inventory", "i"],
+      desc: "View your inventory",
+      func: (utilities, disk, target) => {
+        console.log(colors.green("Inventory:"));
+        if (disk.inventory.length == 0) {
+          console.log(
+            colors.italic("\n     You have nothing in your inventory\n")
+          );
+        } else {
+          disk.inventory.forEach((item) => {
+            console.log(colors.blue(item.name) + ": " + item.desc);
+          });
+        }
+      },
+    },
+    {
+      name: "take",
+      keywords: ["take", "t"],
+      desc: "Take an item",
+      func: (utilities, disk, target) => {
+        const current_room = utilities.getRoom(disk.roomId);
+        const items = current_room.items;
+        const item = items.find((i) => i.name == target);
+        if (item) {
+          if (item.isTakeable == true) {
+            disk.inventory.push(item);
+            delete current_room.items[items.indexOf(item)];
+            console.log(colors.green(`\n      You took the ${item.name}\n`));
+          } else {
+            console.log(
+              colors.red(`\n      You can't take the ${item.name}, dummy\n`)
+            );
+          }
+        } else {
+          console.log(colors.red(`\n      There is no ${target} here\n`));
+        }
+      },
+    },
+    {
+      name: "drop",
+      keywords: ["drop", "d"],
+      desc: "Drop an item",
+      func: (utilities, disk, target) => {
+        const item = disk.inventory.find((i) => i.name == target);
+        if (item) {
+          const current_room = utilities.getRoom(disk.roomId);
+          current_room.items.push(item);
+          disk.inventory.splice(disk.inventory.indexOf(item), 1);
+          console.log(colors.green(`You dropped the ${item.name}`));
+        } else {
+          console.log(colors.red(`You don't have the ${target}`));
+        }
+      },
+    },
+    {
+      name: "quit",
+      keywords: ["quit"],
+      desc: "quit",
+      func: (utilites, disk, target) => {
+        process.exit();
+      },
+    },
+    {
+      name: "talk",
+      keywords: ["talk", "t"],
+      desc: "Talk to an NPC",
+      func: (utilities, disk, target) => {
+        disk.characters.forEach((character) => {
+          let fancy_func = (name) => {
+            if (name.toLowerCase() == target) {
+              disk.inConversation = true;
+              console.log(
+                colors.grey.italic(
+                  "\n     You start talking to " + name + "...\n"
+                )
+              );
+              console.log(colors.green(character.start_line));
+              let i = 0;
+              character.topics.forEach((topic) => {
+                console.log(colors.blue(`${i + 1}. `) + topic.option);
+                i++;
+              });
+              while (disk.inConversation) {
+                const response = utilities.askForInput();
+                if (response[0] == "exit") {
+                  disk.inConversation = false;
+                  console.log(
+                    colors.grey.italic(
+                      "\n     You stop talking to " + name + "...\n"
+                    )
+                  );
+                } else if (!isNaN(response[0])) {
+                  console.log(
+                    colors.green(character.topics[response[0] - 1].response)
+                  );
+                  delete character.topics[response[0] - 1];
+                }
+              }
+            } else {
+              console.log(colors.red(`There is no ${target} here`));
+            }
+          };
+          if (Array.isArray(character.name)) {
+            character.name.forEach((a) => fancy_func(a));
+          } else {
+            fancy_func(character.name);
+          }
+        });
+      },
+    },
+  ],
+  roomId: "start",
+  rooms: [
+    {
+      id: "start",
+      name: "The First Room",
+      desc: `You are in an empty room. There is a DOOR, but it is overgrown with VINES. There is an AXE in the corner of the room.`,
+      items: [
+        {
+          name: "door",
+          desc: "It leads NORTH.",
+          onAction: (action) => {
+            if (action == "use") {
+              console.log(`Type GO NORTH to try the door.`);
+              return true;
+            }
+            return false;
+          },
+        },
+        {
+          name: ["vines", "vine"],
+          desc: `They grew over the DOOR, blocking it from being opened.`,
+        },
+        {
+          name: "axe",
+          desc: `You could probably USE it to cut the VINES, unblocking the door.`,
+          isTakeable: true,
+          onAction: (utilities, action) => {
+            if (action == "use") {
+              const room = utilities.getRoom("start");
+              const exit = utilities.getExit(room, "north");
+
+              if (exit.block) {
+                delete exit.block;
+                console.log(
+                  `You cut through the VINES, unblocking the door to the NORTH.`
+                );
+              } else {
+                console.log(colors.red("There is nothing to use the Axe on."));
+              }
+              return true;
+            }
+            return false;
+          },
+        },
+      ],
+      exits: [
+        {
+          dir: "north",
+          id: "forest",
+          block: `The DOOR leading NORTH is overgrown with VINES.`,
+        },
+      ],
+    },
+    {
+      id: "forest",
+      name: "A Forest",
+      desc: `It's a forest. The trees are very tall. There is an old man near the door you just went trough. The door is not connected to anything, its just there.`,
+      exits: [
+        {
+          dir: "south",
+          id: "start",
+        },
+      ],
+    },
+  ],
+  characters: [
+    {
+      name: ["John", "old man", "man"],
+      location: "forest",
+      desc: "A tall, old man. He seems to be wise enough to know where you are.",
+      start_line: "Hello there, young one, how can I help you?",
+      times_attacked: 0,
+      onAction: (utilites, disk, action) => {
+        if (action == "attack") {
+          utilites.getCharacter("john").times_attacked++;
+          times_attacked = utilites.getCharacter("john").times_attacked;
+          if (times_attacked == 1) {
+            console.log(
+              "You try to attack John, he quikly dodges your attack."
+            );
+            console.log(
+              colors.green(
+                "There is no time to attack an old farmer like me. Maybe talking to me would be a better option?"
+              )
+            );
+          }
+          if (times_attacked == 2) {
+            console.log(
+              "You try to attack John again, like before, he quikly dodges your attack. You can see he is getting annoyed."
+            );
+            console.log(colors.green("Should I repeat myselff?"));
+          }
+          if (times_attacked == 3) {
+            console.log(
+              "You try to attack John yet again, as expectedm he quikly dodges your attack."
+            );
+            console.log(colors.red("\n      You died.\n"));
+            console.log(colors.grey.italic("\n     L...\n"));
+          }
+
+          return true;
+        }
+        return false;
+      },
+      topics: [
+        {
+          option: "Ask him what his name is.",
+          response: "My name is John, young one. I am a farmer.",
+          removeOnRead: true,
+        },
+        {
+          option: "Ask him how he got here.",
+          response:
+            "I was walking through the forest when I saw this door, seemengly going to nowhere.",
+          removeOnRead: true,
+        },
+        {
+          option: "Ask him where you are.",
+          response: "We are in the magical forest of Neverwood",
+          removeOnRead: true,
+          func: (utilites, disk, target) => {
+            utilites.getCharacter("john").topics.push({
+              option: "Ask him to tell you ore about the forest.",
+              response:
+                "This is a forest full of magical creatures. There are many strange trees, and strange creatures. One of them is a giant spider. I think it is a spider atleast.",
+              func: (utilites, disk, target) => {
+                disk.quests.push({
+                  name: "The ancient spider",
+                  desc: "John has told you about the spider that lives in the cave at the center of the Neverwood forest. Kill it and he will tell you more.",
+                  status: "incomplete",
+                });
+              },
+              removeOnRead: true,
+            });
+          },
+        },
+        {
+          option: "How is life?",
+          response: "I am fine, thank you for asking.",
+          removeOnRead: true,
+        },
+      ],
+    },
+  ],
+  quests: [],
+};
+module.exports = { game };
